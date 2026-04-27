@@ -1,0 +1,426 @@
+/* ── Reset & variables ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #1c2128;
+  --border:    #30363d;
+  --text:      #e6edf3;
+  --muted:     #8b949e;
+  --green:     #2ea043;
+  --green-bg:  #0d2818;
+  --yellow:    #d29922;
+  --yellow-bg: #2d2000;
+  --red:       #f85149;
+  --red-bg:    #2d0f0e;
+  --blue:      #388bfd;
+  --radius:    10px;
+  --shadow:    0 1px 3px rgba(0,0,0,.4);
+}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header-inner {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+h1 {
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.last-updated {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* ── Machine grid ────────────────────────────────────────────────────────── */
+.machines-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 16px;
+}
+
+.loading {
+  color: var(--muted);
+  padding: 40px 0;
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+/* ── Machine card ────────────────────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: border-color .2s;
+}
+
+.card.offline {
+  opacity: .65;
+  border-color: #3d1f1e;
+}
+
+.card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+
+.card-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.hw-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.hw-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .3px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.hw-badge-vm  { background: #0d2a30; color: #39d0d8; border-color: #1a4a52; }
+.hw-badge-cpu { background: #0d1f38; color: #58a6ff; border-color: #1f3a5f; }
+.hw-badge-ram { background: #241a38; color: #b084f0; border-color: #3d2d5a; }
+.hw-badge-gpu { background: #2e1f0d; color: #f0883e; border-color: #5a3a1f; }
+.hw-badge-os  { background: #1a2f1a; color: #7ce38b; border-color: #2d5a3a; }
+
+.machine-name {
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.type-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  margin-left: 2px;
+}
+.type-badge.type-server {
+  background: #0d1f38;
+  color: #58a6ff;
+  border-color: #1f3a5f;
+}
+.type-badge.type-nas {
+  background: #2e1f0d;
+  color: #f0883e;
+  border-color: #5a3a1f;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  flex-shrink: 0;
+}
+
+.card.offline .status-dot {
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.badge {
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .4px;
+  text-transform: uppercase;
+}
+
+.badge-online  { background: var(--green-bg);  color: var(--green); }
+.badge-offline { background: var(--red-bg);    color: var(--red);   }
+
+/* ── Metrics body ────────────────────────────────────────────────────────── */
+.card-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.metric-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 6px;
+}
+
+.metric-cell {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metric-label {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.metric-value {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.metric-value.na { color: var(--muted); font-size: 12px; }
+
+.metric-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.metric-suffix {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* color variants */
+.metric-value.green  { color: var(--green); }
+.metric-value.yellow { color: var(--yellow); }
+.metric-value.red    { color: var(--red); }
+
+/* progress bar */
+.bar-wrap {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width .4s ease;
+}
+
+.bar-fill.green  { background: var(--green); }
+.bar-fill.yellow { background: var(--yellow); }
+.bar-fill.red    { background: var(--red); }
+
+/* ── Shared table base (arrays + disks) ─────────────────────────────────── */
+.arrays-table, .disks-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.arrays-table th, .disks-table th {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 5px 8px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.arrays-table td, .disks-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  vertical-align: top;
+  white-space: nowrap;
+}
+.arrays-table th:last-child, .arrays-table td:last-child,
+.disks-table th:last-child, .disks-table td:last-child {
+  border-right: none;
+}
+.arrays-table tr:last-child td,
+.disks-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* ── Arrays table ────────────────────────────────────────────────────────── */
+/* Per-column visual styles target td. only — headers stay uniform gray
+   from the .arrays-table th base rule. Width / wrap rules apply to both. */
+.arrays-table td.col-name { color: var(--text); font-weight: 700; }
+.arrays-table td.col-level { color: var(--muted); font-weight: 600; }
+.arrays-table td.col-capacity { color: var(--text); font-weight: 500; }
+.arrays-table td.col-usage { font-weight: 600; }
+.arrays-table td.col-usage.green  { color: var(--green); }
+.arrays-table td.col-usage.yellow { color: var(--yellow); }
+.arrays-table td.col-usage.red    { color: var(--red); }
+.arrays-table td.col-role {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.arrays-table td.col-role.role-cache { color: #f0883e; }   /* same hue as gpu badge */
+.arrays-table td.col-role.role-swap  { color: var(--muted); }
+.arrays-table td.col-role.role-data  { color: var(--text); }
+.arrays-table .col-members {
+  word-break: break-all;
+  white-space: normal;
+  width: 100%;          /* members claim leftover width so they wrap cleanly */
+}
+.arrays-table td.col-members {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* "+N hidden arrays" / "− hide" toggle row */
+.arrays-table .arrays-toggle-row td {
+  background: var(--surface2);
+  text-align: center;
+  padding: 4px 8px;
+}
+.arrays-table .arrays-toggle {
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.arrays-table .arrays-toggle:hover {
+  background: rgba(56, 139, 253, .12);
+}
+.arrays-table .arrays-toggle .toggle-icon {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-weight: 700;
+  margin-right: 2px;
+}
+
+/* Mounts table — second table beneath arrays, same visual style */
+.arrays-table.mounts-table {
+  margin-top: 8px;
+}
+.arrays-table.mounts-table .col-mount {
+  width: 100%;          /* claim leftover space so long paths wrap cleanly */
+  word-break: break-all;
+  white-space: normal;
+}
+.arrays-table.mounts-table td.col-mount {
+  color: var(--blue);
+  font-weight: 500;
+}
+
+/* ── Disks table (single full-width) ────────────────────────────────────── */
+.disks-table { table-layout: fixed; }
+/* Width rules apply to both th and td (column geometry); visual styles target td only */
+.disks-table .col-name     { width: 18%; }
+.disks-table .col-capacity { width: 14%; }
+.disks-table .col-state    { width: 53%; }
+.disks-table .col-temp     { width: 15%; text-align: right; }
+.disks-table td.col-name     { color: var(--text); font-weight: 700; }
+.disks-table td.col-capacity { color: var(--text); font-weight: 500; }
+.disks-table td.col-state    { font-weight: 600; }
+.disks-table td.col-temp     { font-weight: 600; }
+
+.disks-table td.col-state.usage.green  { color: var(--green); }
+.disks-table td.col-state.usage.yellow { color: var(--yellow); }
+.disks-table td.col-state.usage.red    { color: var(--red); }
+.disks-table .col-state.label {
+  color: var(--muted);
+  font-style: italic;
+  font-size: 10px;
+  font-weight: 500;
+}
+.disks-table td.col-temp.green  { color: var(--green); }
+.disks-table td.col-temp.yellow { color: var(--yellow); }
+.disks-table td.col-temp.red    { color: var(--red); }
+
+/* divider */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+}

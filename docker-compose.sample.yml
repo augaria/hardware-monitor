@@ -1,0 +1,81 @@
+services:
+  hardware-monitor:
+    container_name: hardware-monitor-web
+    image: hardware-monitor-web:latest
+    # To use a registry-published image, replace the line above with e.g.:
+    #   image: ghcr.io/augaria/hardware-monitor:latest
+    restart: unless-stopped
+
+    # ── Ports ──────────────────────────────────────────────────────────────
+    ports:
+      - "127.0.0.1:5000:5000"       # Change the left side to use a different host port
+
+    environment:
+
+      # ── Server ─────────────────────────────────────────────────────────
+      PORT: "5000"
+
+      # Seconds without a report before a machine is considered offline
+      # Should be several times the agent's --interval (default interval: 60s)
+      OFFLINE_TIMEOUT: "300"
+
+      # How long (minutes) to wait before re-sending the same alert
+      ALERT_COOLDOWN_MINUTES: "10"
+
+      # ── Alert Thresholds ────────────────────────────────────────────────
+      # Remove or leave empty ("") to disable a specific threshold.
+      # Units: % for usage, °C for temperature.
+      #
+      # These are server-wide DEFAULTS. Individual agents can ship their own
+      # per-machine override file (see agent/thresholds.sample.conf) — overrides
+      # are merged per metric, so an agent only needs to specify the keys it
+      # wants to change.
+
+      # Arrays smaller than this many GB auto-collapse on the dashboard
+      # (along with SSD-cache arrays). Per-agent override possible via
+      # the same key in the agent's thresholds file.
+      HIDE_ARRAYS_BELOW_GB:   "10"
+
+      ALERT_CPU_USAGE:        "90"    # %
+      ALERT_CPU_TEMP:         "85"    # °C
+      ALERT_MEMORY_USAGE:     "90"    # %
+      ALERT_MOTHERBOARD_TEMP: "75"    # °C
+      ALERT_GPU_USAGE:        "95"    # %
+      ALERT_GPU_TEMP:         "85"    # °C
+      ALERT_GPU_MEMORY:       "90"    # %
+      ALERT_DISK_TEMP:        "60"    # °C
+
+      # ── Notifier Channels ───────────────────────────────────────────────
+      # JSON array of channel configs.
+      # Supported types: "email", "wechat"
+      # Set to "[]" or remove the variable entirely to disable all alerts.
+      #
+      # Email fields:
+      #   type, smtp_server, email, passkey, recipients (list, optional — defaults to sender)
+      #
+      # WeChat fields:
+      #   type, app_id, app_secret, user_id, template_id, token_cache_path (optional)
+      #
+      # All channel types support an optional "min_level" field:
+      #   10=DEBUG  20=INFO  30=WARNING  40=ERROR  50=CRITICAL  (default: 20)
+
+      NOTIFIER_CHANNELS: |
+        [
+          {
+            "type": "email",
+            "smtp_server": "smtp.example.com",
+            "email": "alert@example.com",
+            "passkey": "your_smtp_password",
+            "recipients": ["admin@example.com"],
+            "min_level": 30
+          }
+        ]
+
+      # WeChat example (add to the array above alongside or instead of email):
+      #   {
+      #     "type": "wechat",
+      #     "app_id": "wx_your_app_id",
+      #     "app_secret": "your_app_secret",
+      #     "user_id": "recipient_open_id",
+      #     "template_id": "your_template_id"
+      #   }

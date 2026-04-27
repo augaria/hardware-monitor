@@ -1,0 +1,24 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+eggs/
+*.egg-info/
+.eggs/
+
+# Local docker-compose with real config
+docker-compose.yml
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
