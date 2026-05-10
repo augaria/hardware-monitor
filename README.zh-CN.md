@@ -9,9 +9,15 @@
 一套面向局域网 Linux 主机的轻量级硬件监控系统，采用推送（push）模式。每台被监控的机器运行一个体积很小的 Agent，按设定周期采集硬件指标并主动上报到中心服务器；中心服务器在内存中聚合数据，提供实时的 Web 仪表板，并在指标越线或机器掉线时通过通知通道发出告警。
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Hardware Monitor 仪表板" width="640">
+  <img src="docs/screenshots/dashboard-1.png" alt="Hardware Monitor 仪表板 —— 服务器" width="720">
   <br>
-  <em>实时仪表板：混合展示服务器和 NAS，阵列、磁盘和温度按严重程度自动着色。</em>
+  <em>服务器概览：统一对齐的卡片头部，CPU / 内存 / GPU 指标按严重程度着色。</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-2.png" alt="Hardware Monitor 仪表板 —— NAS 阵列与磁盘" width="720">
+  <br>
+  <em>NAS 视图：mdadm 阵列含角色和挂载路径，每块磁盘单独显示使用率和温度。</em>
 </p>
 
 ## 特性

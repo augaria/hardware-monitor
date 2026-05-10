@@ -65,7 +65,7 @@ function makeMetricCell(label, value, colorKey, unit, showBar, suffix) {
     </div>`;
 }
 
-function makeHwBadges(m) {
+function makeCpuRamBadges(m) {
   if (m.is_vm) {
     const label = m.virt_type ? `VM ${m.virt_type.toUpperCase()}` : 'VM';
     return `<span class="hw-badge hw-badge-vm">${label}</span>`;
@@ -78,10 +78,12 @@ function makeHwBadges(m) {
   if (hasValue(m.memory_total_gb)) {
     badges.push(`<span class="hw-badge hw-badge-ram">RAM ${m.memory_total_gb} GB</span>`);
   }
-  if (m.gpu_model) {
-    badges.push(`<span class="hw-badge hw-badge-gpu">GPU ${m.gpu_model}</span>`);
-  }
   return badges.join('');
+}
+
+function makeGpuBadge(m) {
+  if (m.is_vm || !m.gpu_model) return '';
+  return `<span class="hw-badge hw-badge-gpu">GPU ${m.gpu_model}</span>`;
 }
 
 function makeOsBadge(m) {
@@ -230,8 +232,9 @@ function makeCard(m) {
   const hasDisks  = disks.length > 0;
   const hasArrays = arrays.length > 0;
 
-  const hwBadges = makeHwBadges(m);
-  const osBadge  = makeOsBadge(m);
+  const cpuRamBadges = makeCpuRamBadges(m);
+  const gpuBadge     = makeGpuBadge(m);
+  const osBadge      = makeOsBadge(m);
 
   // CPU + Memory + Motherboard row
   const cpuRow = `
@@ -288,8 +291,9 @@ function makeCard(m) {
             <span class="badge badge-${statusText}">${statusText}</span>
           </div>
         </div>
-        ${osBadge ? `<div class="hw-badges hw-badges-os">${osBadge}</div>` : ''}
-        ${hwBadges ? `<div class="hw-badges">${hwBadges}</div>` : ''}
+        <div class="hw-badges hw-badges-os">${osBadge}</div>
+        <div class="hw-badges hw-badges-cpuram">${cpuRamBadges}</div>
+        <div class="hw-badges hw-badges-gpu">${gpuBadge}</div>
       </div>
       <div class="card-body">
         ${cpuRow}

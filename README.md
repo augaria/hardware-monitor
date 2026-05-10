@@ -9,9 +9,15 @@
 A lightweight, push-based hardware monitoring system for Linux machines on a local network. Each monitored machine runs a small agent that periodically collects hardware metrics and pushes them to a central server. The central server aggregates data from all agents, serves a real-time web dashboard, and dispatches alerts when thresholds are exceeded or machines go offline.
 
 <p align="center">
-  <img src="docs/screenshots/dashboard.png" alt="Hardware Monitor dashboard" width="640">
+  <img src="docs/screenshots/dashboard-1.png" alt="Hardware Monitor dashboard — servers" width="720">
   <br>
-  <em>Real-time dashboard showing a mix of servers and NAS units, with arrays, disks, and temperatures color-coded by severity.</em>
+  <em>Servers at a glance — aligned card headers, CPU / memory / GPU metrics color-coded by severity.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/dashboard-2.png" alt="Hardware Monitor dashboard — NAS units with arrays and disks" width="720">
+  <br>
+  <em>NAS view — mdadm arrays with roles and mount paths, plus per-disk usage and temperature.</em>
 </p>
 
 ## Features

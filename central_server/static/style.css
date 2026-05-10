@@ -26,7 +26,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.5;
 }
 
@@ -48,7 +48,7 @@ header {
 }
 
 h1 {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -57,7 +57,7 @@ h1 {
 }
 
 .last-updated {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -116,12 +116,13 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  min-height: 22px;
 }
 
 .hw-badge {
   padding: 2px 8px;
   border-radius: 10px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: .3px;
   border: 1px solid transparent;
@@ -135,7 +136,7 @@ main {
 .hw-badge-os  { background: #1a2f1a; color: #7ce38b; border-color: #2d5a3a; }
 
 .machine-name {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -143,7 +144,7 @@ main {
 }
 
 .type-badge {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .8px;
   padding: 1px 6px;
@@ -180,14 +181,14 @@ main {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
 }
 
 .badge {
   padding: 2px 7px;
   border-radius: 12px;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: .4px;
   text-transform: uppercase;
@@ -211,7 +212,7 @@ main {
 }
 
 .group-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: .6px;
   text-transform: uppercase;
@@ -235,16 +236,16 @@ main {
 }
 
 .metric-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
 }
 
 .metric-value {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
 }
 
-.metric-value.na { color: var(--muted); font-size: 12px; }
+.metric-value.na { color: var(--muted); font-size: 13px; }
 
 .metric-value-row {
   display: flex;
@@ -254,7 +255,7 @@ main {
 }
 
 .metric-suffix {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -287,14 +288,14 @@ main {
 .arrays-table, .disks-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 12px;
   font-family: ui-monospace, 'SFMono-Regular', 'Consolas', monospace;
   border: 1px solid var(--border);
   border-radius: 4px;
   overflow: hidden;
 }
 .arrays-table th, .disks-table th {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: .5px;
   text-transform: uppercase;
@@ -333,7 +334,7 @@ main {
 .arrays-table td.col-usage.yellow { color: var(--yellow); }
 .arrays-table td.col-usage.red    { color: var(--red); }
 .arrays-table td.col-role {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: .5px;
   text-transform: uppercase;
@@ -348,7 +349,7 @@ main {
 }
 .arrays-table td.col-members {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -363,7 +364,7 @@ main {
   border: none;
   color: var(--blue);
   font-family: inherit;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   cursor: pointer;
   padding: 2px 6px;
@@ -412,7 +413,7 @@ main {
 .disks-table .col-state.label {
   color: var(--muted);
   font-style: italic;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
 }
 .disks-table td.col-temp.green  { color: var(--green); }
