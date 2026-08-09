@@ -23,10 +23,10 @@ A lightweight, push-based hardware monitoring system for Linux machines on a loc
 ## Features
 
 - **Push model** — agents initiate all communication; the server never polls. Adding a new machine is one install command.
-- **Stateless server** — all state lives in memory. Restart anytime with no data loss beyond the in-flight window.
+- **Near-stateless server** — metrics live in memory; only alert timers are persisted, so a restart loses nothing but the in-flight window.
 - **Minimal agent dependencies** — only `psutil` (and optionally `pynvml` for NVIDIA GPUs); HTTP via stdlib `urllib`.
 - **NAS-friendly** — first-class support for mdadm arrays, LVM, bcache, ZFS, LUKS; verified on Synology DSM, OpenMediaVault, TrueNAS.
-- **Configurable alerts** — per-metric thresholds with per-machine overrides; cooldowns prevent alert floods.
+- **Debounced alerts** — per-metric thresholds with per-machine overrides; a value must stay over the line before anything is sent, and hysteresis keeps a metric on the line from flapping.
 - **Pluggable notifiers** — email and WeChat out of the box via the [notifier](https://github.com/augaria/notifier) library.
 - **Real-time dashboard** — dark-themed responsive grid, polls every 5s, color-coded by severity.
 
@@ -45,7 +45,8 @@ Monitored machines (N)              Central server (1)
 └──────────────────────┘            │                                      │
                                     │  central_server/alerter.py           │
                                     │  - threshold checks                  │
-                                    │  - per-alert cooldowns               │
+                                    │  - debounce + hysteresis             │
+                                    │  - repeat throttle, recovery notice  │
                                     │  - notifier dispatch                 │
                                     │                                      │
                                     │  Docker container                    │
@@ -129,9 +130,14 @@ All central-server configuration is via environment variables (see [docker-compo
 | Variable | Default | Description |
 |---|---|---|
 | `PORT` | `5000` | Port the Flask app listens on |
-| `OFFLINE_TIMEOUT` | `30` | Seconds without a report before a machine is marked offline |
-| `ALERT_COOLDOWN_MINUTES` | `10` | Minimum minutes between repeated alerts for the same key |
+| `OFFLINE_TIMEOUT` | `30` | Seconds without a report before a machine is marked offline; also the largest reporting gap that still counts as a continuous breach |
+| `ALERT_FOR_MINUTES` | `5` | A value must stay over its threshold this long before an alert is sent |
+| `ALERT_REPEAT_HOURS` | `6` | How often a condition that stays over the line is re-announced |
+| `ALERT_CLEAR_RATIO` | `0.95` | An alert resolves once the value falls to this fraction of the threshold |
+| `ALERT_STATE_PATH` | `/data/alert_state.json` | Where alert timers are persisted (`""` = memory only) |
 | `HIDE_ARRAYS_BELOW_GB` | `10` | Dashboard auto-collapses arrays smaller than this (and SSD-cache arrays) |
+
+> `ALERT_COOLDOWN_MINUTES` was removed. It conflated two separate things — how long a value must be bad before it counts, and how often you are reminded — which meant a disk sitting 1°C over its threshold generated an alert every 10 minutes, all day. Use `ALERT_FOR_MINUTES` and `ALERT_REPEAT_HOURS` instead.
 
 > **Tip:** set `OFFLINE_TIMEOUT` to several times the agent's `--interval` (e.g. 180–300s for a 60s interval) so a single missed report doesn't trigger a false-positive offline alert.
 
@@ -151,6 +157,20 @@ Leave a variable unset or empty to disable that alert.
 | `ALERT_DISK_TEMP` | °C | `60` |
 
 These are server-wide defaults. Individual agents can ship their own per-machine override file — see below.
+
+### How a threshold becomes an alert
+
+Crossing a threshold once is not an alert. Temperatures and memory are point samples, so a single backup or compile job used to be enough to trigger a notification. Every condition goes through the same state machine:
+
+1. **Debounce** — the value must stay over the threshold *continuously* for `ALERT_FOR_MINUTES` before anything is sent. A reporting gap longer than `OFFLINE_TIMEOUT` breaks continuity: without samples in between there is no evidence the value stayed high, so the timer restarts.
+2. **Repeat** — while the condition persists it is re-announced every `ALERT_REPEAT_HOURS`, not on the debounce interval.
+3. **Hysteresis** — it resolves only once the value drops to `ALERT_CLEAR_RATIO × threshold` and stays there for `ALERT_FOR_MINUTES`, which then sends a "back to normal" notice. Without that gap, a metric hovering on the line would alternate between firing and resolving.
+
+Offline detection works the same way, with `OFFLINE_TIMEOUT` as its debounce: one alert when a machine goes quiet, re-announced every `ALERT_REPEAT_HOURS` while it stays quiet, and a "back online" notice on its next report.
+
+Alert timers persist to `ALERT_STATE_PATH`, so recreating the container does not re-alert everything that is still hot. Mount a writable volume at `/data` (see [docker-compose.sample.yml](docker-compose.sample.yml)).
+
+> All notifications are sent at `WARNING` or above. `notifier` channels default to `min_level=WARNING` and discard anything below it **silently**, so an `INFO`-level notice would never be delivered.
 
 ### Notification channels
 
@@ -224,7 +244,7 @@ hardware-monitor/
 │   └── pyproject.toml           # Package definition; entry point: hardware-monitor-agent
 ├── central_server/
 │   ├── main.py                  # Flask app: /report, /api/status, offline watcher
-│   ├── alerter.py               # Threshold checks, cooldown logic, notifier dispatch
+│   ├── alerter.py               # Threshold checks, debounce/hysteresis state machine, notifier dispatch
 │   ├── templates/
 │   │   └── index.html           # Dashboard HTML skeleton
 │   └── static/

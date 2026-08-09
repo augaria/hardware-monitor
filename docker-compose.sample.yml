@@ -10,17 +10,41 @@ services:
     ports:
       - "127.0.0.1:5000:5000"       # Change the left side to use a different host port
 
+    # ── Volumes ────────────────────────────────────────────────────────────
+    volumes:
+      # Alert state (per-condition timers). Without it, every condition still
+      # over its threshold re-alerts when the container is recreated.
+      - ./alert-state:/data
+
     environment:
 
       # ── Server ─────────────────────────────────────────────────────────
       PORT: "5000"
 
-      # Seconds without a report before a machine is considered offline
-      # Should be several times the agent's --interval (default interval: 60s)
+      # Seconds without a report before a machine is considered offline.
+      # Should be several times the agent's --interval (default interval: 60s).
+      # Doubles as the largest reporting gap that still counts as a continuous
+      # threshold breach.
       OFFLINE_TIMEOUT: "300"
 
-      # How long (minutes) to wait before re-sending the same alert
-      ALERT_COOLDOWN_MINUTES: "10"
+      # ── Alert behaviour ─────────────────────────────────────────────────
+      # A value must stay over its threshold this long before anything is sent.
+      # Absorbs spikes — a backup or a compile job no longer pages you.
+      ALERT_FOR_MINUTES: "5"
+
+      # How often to re-announce a condition that stays over the line.
+      # Keep this well above ALERT_FOR_MINUTES: the debounce decides whether
+      # something is real, this decides how often you are reminded about it.
+      ALERT_REPEAT_HOURS: "6"
+
+      # Hysteresis: an alert resolves only once the value falls to
+      # ratio x threshold (0.95 → an 85°C alert clears at 80.75°C) and stays
+      # there for ALERT_FOR_MINUTES. Stops a metric sitting on the line from
+      # alternating between firing and resolving.
+      ALERT_CLEAR_RATIO: "0.95"
+
+      # Where alert state is persisted ("" = keep in memory only).
+      ALERT_STATE_PATH: "/data/alert_state.json"
 
       # ── Alert Thresholds ────────────────────────────────────────────────
       # Remove or leave empty ("") to disable a specific threshold.

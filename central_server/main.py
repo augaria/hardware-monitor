@@ -90,13 +90,9 @@ def report():
     now = time.time()
 
     with _lock:
-        prev = _machines.get(name)
-        was_offline = prev is not None and (now - prev['last_seen']) > OFFLINE_TIMEOUT
-        is_new = prev is None
         _machines[name] = {'data': data, 'last_seen': now}
 
-    if not is_new:
-        alerter.check(data, came_back_online=was_offline)
+    alerter.check(data)
 
     return jsonify({'ok': True})
 
@@ -104,7 +100,6 @@ def report():
 # ── Background: offline detection ─────────────────────────────────────────────
 
 def _offline_watcher():
-    notified: set = set()
     while True:
         time.sleep(10)
         now = time.time()
@@ -114,11 +109,10 @@ def _offline_watcher():
         for name, entry in snapshot:
             age = now - entry['last_seen']
             if age > OFFLINE_TIMEOUT:
-                if name not in notified:
-                    alerter.alert_offline(name, int(age))
-                    notified.add(name)
-            else:
-                notified.discard(name)
+                # Called on every tick; the Alerter's repeat interval decides
+                # whether anything is actually sent, so a machine that stays
+                # down is re-announced instead of alerting exactly once.
+                alerter.alert_offline(name, int(age))
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

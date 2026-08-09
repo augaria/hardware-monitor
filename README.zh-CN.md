@@ -23,10 +23,10 @@
 ## 特性
 
 - **推送模型** —— 由 Agent 主动上报，服务器不向客户端轮询。新增一台机器只需一条安装命令。
-- **无状态服务器** —— 所有状态保存在内存中，可随时重启，最多丢失一个上报周期内的数据。
+- **准无状态服务器** —— 指标数据保存在内存中，只有告警计时器会落盘，可随时重启，最多丢失一个上报周期内的数据。
 - **依赖极少** —— Agent 只依赖 `psutil`（NVIDIA GPU 可选 `pynvml`），HTTP 走标准库 `urllib`。
 - **NAS 友好** —— 原生支持 mdadm 阵列、LVM、bcache、ZFS、LUKS；已在 Synology DSM、OpenMediaVault、TrueNAS 上验证。
-- **可配置告警** —— 各项指标都可以配置阈值，并支持单机覆盖；带有冷却时间，避免告警风暴。
+- **带去抖的告警** —— 各项指标都可以配置阈值，并支持单机覆盖；数值必须持续超标才会发送，并用滞回避免贴线震荡。
 - **可插拔通知通道** —— 通过 [notifier](https://github.com/augaria/notifier) 库内建支持邮件和微信。
 - **实时仪表板** —— 深色主题响应式网格，每 5 秒刷新一次，按严重程度自动着色。
 
@@ -45,7 +45,8 @@
 └──────────────────────┘            │                                      │
                                     │  central_server/alerter.py           │
                                     │  - 阈值检查                          │
-                                    │  - 单条告警冷却                      │
+                                    │  - 去抖 + 滞回                       │
+                                    │  - 重复间隔、恢复通知                │
                                     │  - 通知分发                          │
                                     │                                      │
                                     │  Docker 容器                         │
@@ -129,9 +130,14 @@ sudo bash install.sh --update
 | 变量 | 默认值 | 说明 |
 |---|---|---|
 | `PORT` | `5000` | Flask 监听端口 |
-| `OFFLINE_TIMEOUT` | `30` | 多少秒未上报视为掉线 |
-| `ALERT_COOLDOWN_MINUTES` | `10` | 同一告警的最小重复间隔（分钟） |
+| `OFFLINE_TIMEOUT` | `30` | 多少秒未上报视为掉线；同时也是"持续超标"所允许的最大上报间隔 |
+| `ALERT_FOR_MINUTES` | `5` | 数值持续超标多久才发送告警 |
+| `ALERT_REPEAT_HOURS` | `6` | 持续超标时，每隔多久重复提醒一次 |
+| `ALERT_CLEAR_RATIO` | `0.95` | 数值回落到阈值的这个比例以下才算恢复 |
+| `ALERT_STATE_PATH` | `/data/alert_state.json` | 告警计时器的持久化路径（`""` 表示只存内存） |
 | `HIDE_ARRAYS_BELOW_GB` | `10` | 仪表板自动折叠小于此容量的阵列（以及 SSD 缓存阵列） |
+
+> `ALERT_COOLDOWN_MINUTES` 已移除。它把两件不同的事混为一谈 —— 数值要坏多久才算数、以及多久提醒你一次 —— 结果是一块只超标 1°C 的硬盘会每 10 分钟发一封邮件，发一整天。请改用 `ALERT_FOR_MINUTES` 和 `ALERT_REPEAT_HOURS`。
 
 > **建议：** `OFFLINE_TIMEOUT` 设为 Agent `--interval` 的若干倍（例如间隔 60 秒时设为 180–300 秒），可以避免单次上报失败被误判为掉线。
 
@@ -151,6 +157,20 @@ sudo bash install.sh --update
 | `ALERT_DISK_TEMP` | °C | `60` |
 
 以上是服务器全局默认值。每台 Agent 还可以提供自己的覆盖文件，详见下一节。
+
+### 阈值如何变成一条告警
+
+超标一次不算告警。温度和内存都是瞬时采样，以前一次备份、一次编译就足以触发通知。现在每个条件都走同一套状态机：
+
+1. **去抖** —— 数值必须**连续**超标 `ALERT_FOR_MINUTES` 才会发送。如果上报中断超过 `OFFLINE_TIMEOUT`，连续性即被打断：中间没有采样，就没有证据说明数值一直很高，计时重新开始。
+2. **重复间隔** —— 条件持续存在时，每 `ALERT_REPEAT_HOURS` 重复提醒一次，而不是按去抖间隔。
+3. **滞回** —— 只有当数值回落到 `ALERT_CLEAR_RATIO × 阈值` 以下并保持 `ALERT_FOR_MINUTES`，才算恢复并发送一条"恢复正常"通知。没有这个间隔，贴着阈值波动的指标会在触发和恢复之间反复横跳。
+
+掉线检测同理，`OFFLINE_TIMEOUT` 就是它的去抖：机器失联时发一条，持续失联则每 `ALERT_REPEAT_HOURS` 重复一次，恢复上报时发一条"back online"。
+
+告警计时器会持久化到 `ALERT_STATE_PATH`，所以重建容器不会把所有仍在超标的条件重报一遍。需要在 `/data` 挂一个可写卷（见 [docker-compose.sample.yml](docker-compose.sample.yml)）。
+
+> 所有通知都以 `WARNING` 及以上级别发送。`notifier` 的通道默认 `min_level=WARNING`，低于该级别的消息会被**静默丢弃**，所以 `INFO` 级别的通知永远送不出去。
 
 ### 通知通道
 
@@ -224,7 +244,7 @@ hardware-monitor/
 │   └── pyproject.toml           # 包定义；命令入口：hardware-monitor-agent
 ├── central_server/
 │   ├── main.py                  # Flask 应用：/report、/api/status、掉线检测线程
-│   ├── alerter.py               # 阈值检查、冷却逻辑、通知分发
+│   ├── alerter.py               # 阈值检查、去抖/滞回状态机、通知分发
 │   ├── templates/
 │   │   └── index.html           # 仪表板 HTML 框架
 │   └── static/
