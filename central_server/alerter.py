@@ -18,8 +18,10 @@ reminded about it while it stays broken.
 import json
 import math
 import os
+import sys
 import threading
 import time
+from typing import NoReturn
 
 try:
     from notifier import NotificationDispatcher, Notification, Level
@@ -40,7 +42,14 @@ try:
     NOTIFIER_AVAILABLE = True
 except ImportError:
     NOTIFIER_AVAILABLE = False
-    print("Warning: notifier package not installed — alerts disabled.")
+    print("Warning: notifier package not installed — alerts will be logged only. "
+          "Setting NOTIFIER_CHANNELS in this state is a startup error.")
+
+    class Level:
+        """Stand-in so the log-only path still has severity names to use."""
+        INFO = 20
+        WARNING = 30
+        CRITICAL = 50
 
 
 # ── Threshold definitions ─────────────────────────────────────────────────────
@@ -98,45 +107,68 @@ def _resolve_thresholds(defaults: dict, overrides) -> dict:
     return merged
 
 
-def _build_dispatcher():
-    if not NOTIFIER_AVAILABLE:
-        return None
+def _fatal(problem: str) -> NoReturn:
+    """Abort startup.
 
+    A broken NOTIFIER_CHANNELS used to be logged and then ignored, leaving a
+    server that looks perfectly healthy — dashboard up, agents reporting — but
+    can never deliver an alert. Configuring notifications and silently not
+    getting them is worse than not configuring them at all, so this is fatal.
+    """
+    print(f"FATAL: NOTIFIER_CHANNELS is set but unusable — {problem}", file=sys.stderr)
+    print("Fix the value, or unset it / set it to '[]' to run without alerts.",
+          file=sys.stderr)
+    raise SystemExit(1)
+
+
+_EMAIL_KEYS = ('smtp_server', 'email', 'passkey', 'recipients', 'min_level')
+_WECHAT_KEYS = ('app_id', 'app_secret', 'user_id', 'template_id',
+                'token_cache_path', 'min_level')
+
+
+def _build_dispatcher():
     raw = os.getenv('NOTIFIER_CHANNELS', '[]').strip()
     if not raw or raw == '[]':
+        # Explicitly no notifications — alerts are logged only.
         return None
+
+    if not NOTIFIER_AVAILABLE:
+        _fatal("the notifier package is not installed")
 
     try:
         channels_conf = json.loads(raw)
     except json.JSONDecodeError as exc:
-        print(f"Error parsing NOTIFIER_CHANNELS JSON: {exc}")
-        return None
+        _fatal(f"invalid JSON: {exc}")
+
+    if not isinstance(channels_conf, list):
+        _fatal(f"expected a JSON array of channel configs, got {type(channels_conf).__name__}")
 
     configs = []
-    for ch in channels_conf:
+    for idx, ch in enumerate(channels_conf):
+        where = f"channel #{idx + 1}"
+        if not isinstance(ch, dict):
+            _fatal(f"{where} is a {type(ch).__name__}, expected an object")
         ch = dict(ch)
-        ch_type = ch.pop('type', '').lower()
+        ch_type = str(ch.pop('type', '')).lower()
         try:
             if ch_type == 'email':
-                configs.append(EmailConfig(**{k: v for k, v in ch.items()
-                                              if k in ('smtp_server', 'email', 'passkey', 'recipients', 'min_level')}))
+                configs.append(EmailConfig(**{k: v for k, v in ch.items() if k in _EMAIL_KEYS}))
             elif ch_type == 'wechat':
-                configs.append(WeChatConfig(**{k: v for k, v in ch.items()
-                                               if k in ('app_id', 'app_secret', 'user_id', 'template_id',
-                                                        'token_cache_path', 'min_level')}))
+                configs.append(WeChatConfig(**{k: v for k, v in ch.items() if k in _WECHAT_KEYS}))
             else:
-                print(f"Warning: unknown channel type {ch_type!r}")
+                _fatal(f"{where} has unknown type {ch_type!r} (expected 'email' or 'wechat')")
+        except SystemExit:
+            raise
         except Exception as exc:
-            print(f"Error configuring {ch_type} channel: {exc}")
+            _fatal(f"{where} ({ch_type}) could not be configured: {exc}")
 
     if not configs:
-        return None
+        _fatal("no channels were configured")
 
     try:
         return NotificationDispatcher.from_configs(configs)
     except Exception as exc:
-        print(f"Error building NotificationDispatcher: {exc}")
-        return None
+        _fatal(f"could not build the dispatcher: {exc}")
 
 
 # ── Per-condition state ───────────────────────────────────────────────────────

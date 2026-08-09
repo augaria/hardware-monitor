@@ -176,6 +176,12 @@ Alert timers persist to `ALERT_STATE_PATH`, so recreating the container does not
 
 Set `NOTIFIER_CHANNELS` to a JSON array of channel configs. Supported types: `email`, `wechat`.
 
+If `NOTIFIER_CHANNELS` is set but unusable — malformed JSON, an unknown channel type, a channel that cannot be constructed — **the server refuses to start** and prints the reason. It used to log a warning and carry on, which left a server that looked perfectly healthy but could never deliver an alert; configuring notifications and silently not receiving them is worse than not configuring them at all.
+
+To run deliberately without notifications, unset the variable or set it to `[]`. Alerts are then written to the container log only, and the server starts normally.
+
+> **Tip:** keep the JSON on a single line in `docker-compose.yml` (single-quoted YAML scalar). A literal tab or newline pasted into a value is invalid JSON — `Invalid control character at ...` — and is the most common way to break this.
+
 ```json
 [
   {

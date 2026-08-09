@@ -176,6 +176,12 @@ sudo bash install.sh --update
 
 把 `NOTIFIER_CHANNELS` 设为一个 JSON 数组，每个元素是一个通道配置。当前支持 `email` 和 `wechat`。
 
+如果 `NOTIFIER_CHANNELS` 设置了但不可用 —— JSON 格式错误、通道类型不认识、通道构造失败 —— **服务会拒绝启动**并打印原因。以前它只打一条警告然后继续运行，结果是服务看起来完全健康、但永远发不出告警；配了通知却收不到，比没配通知更危险。
+
+如果就是想不发通知，把这个变量删掉或设为 `[]` 即可，告警只写进容器日志，服务正常启动。
+
+> **建议：** 在 `docker-compose.yml` 里把 JSON 写成一行（YAML 单引号标量）。值里混进真实的制表符或换行就不是合法 JSON（`Invalid control character at ...`），这是最常见的出错方式。
+
 ```json
 [
   {
