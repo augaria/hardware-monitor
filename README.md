@@ -93,7 +93,13 @@ The installer prompts for the central server URL, machine name, and report inter
 sudo bash install.sh --update
 ```
 
-Verify with `systemctl status hardware-monitor-agent`.
+Verify with `systemctl status hardware-monitor-agent`, then check that reports are landing:
+
+```bash
+journalctl -u hardware-monitor-agent --since "5 min ago" | grep -E "\[OK|\[ERR"
+```
+
+Every line should be `[OK 200]`. The agent does not follow redirects and only counts a report as delivered when the server answers `{"ok": true}`, so a report intercepted on the way is logged as an error instead of a false success. `[ERR] server returned HTTP 302 -> https://auth...` means an authenticating reverse proxy caught the request. `POST /report` has to reach the server without logging in, either through an auth exemption for that path or a direct LAN route. With split DNS, check which address the machine resolves the server to (`resolvectl query <host>`). One machine using a DNS server that returns the public address is enough to make its card flip between online and offline.
 
 ## Metrics Collected
 
@@ -236,6 +242,8 @@ Each card shows:
 - **GPU row** (if present) — usage, VRAM, temp.
 - **Arrays table** — one row per mdadm array with level, size, usage, role (`DATA` / `CACHE` / `SWAP`), and member disks. Mount paths listed below the table. Small / cache arrays auto-collapse behind a "+ show N hidden" toggle.
 - **Disks table** — name, capacity, state-or-usage, temperature. Unmounted disks show their role (e.g. `RAID md2`, `LVM PV`, `ZFS pool`) instead of a usage %.
+
+A machine gets a card on its first report after the server starts. The server keeps machines in memory only. A card stays until the server restarts: once no report has arrived for `OFFLINE_TIMEOUT` seconds, it turns red and shows "last seen Ns ago" instead of disappearing. If a card keeps switching between online and offline, its reports are arriving less often than `OFFLINE_TIMEOUT`. Check the agent log, as described in the install section above.
 
 Values are color-coded by severity (green / yellow / red). The visual thresholds are independent from the server-side alert thresholds and are defined in [central_server/static/app.js](central_server/static/app.js).
 

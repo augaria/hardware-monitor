@@ -93,7 +93,13 @@ sudo bash install.sh
 sudo bash install.sh --update
 ```
 
-可通过 `systemctl status hardware-monitor-agent` 查看运行状态。
+可通过 `systemctl status hardware-monitor-agent` 查看运行状态，再确认上报确实送达：
+
+```bash
+journalctl -u hardware-monitor-agent --since "5 min ago" | grep -E "\[OK|\[ERR"
+```
+
+每一行都应该是 `[OK 200]`。Agent 不跟随重定向，并且只有服务端返回 `{"ok": true}` 才算送达，所以途中被拦截的上报会记成错误，不会显示成假成功。`[ERR] server returned HTTP 302 -> https://auth...` 表示请求被带登录认证的反向代理拦下了。`POST /report` 必须不经登录就能到达服务端：可以给这个路径设认证豁免，也可以让 agent 走内网直连。如果用了分流 DNS，用 `resolvectl query <域名>` 看这台机器把服务端域名解析到了哪个地址。只要某台机器用了一个返回公网地址的 DNS，它的卡片就会在在线和离线之间来回跳。
 
 ## 采集的指标
 
@@ -236,6 +242,8 @@ ALERT_DISK_TEMP=55         # NAS 机械盘 —— 阈值更严
 - **GPU 行**（如有） —— 使用率、显存使用率、温度。
 - **Arrays 表格** —— 每个 mdadm 阵列一行：等级、容量、使用率、角色（`DATA` / `CACHE` / `SWAP`）、成员盘；挂载路径列在表格下方。容量过小或角色为 `cache` 的阵列默认被折叠，可点击 "+ show N hidden" 展开。
 - **Disks 表格** —— 名称、容量、状态或使用率、温度。未挂载的盘显示其角色（如 `RAID md2`、`LVM PV`、`ZFS pool`），而不是使用率。
+
+机器在服务端启动后第一次上报时出现卡片。服务端只把机器保存在内存里，卡片会一直保留到服务端重启：超过 `OFFLINE_TIMEOUT` 秒没收到上报，卡片变红并显示 "last seen Ns ago"，而不是消失。如果某张卡片在在线和离线之间来回跳，说明它的上报间隔经常超过 `OFFLINE_TIMEOUT`，请按上面安装一节的方法查看 agent 日志。
 
 数值按严重程度自动着色（绿 / 黄 / 红）。这套视觉阈值与服务器告警阈值是独立的，定义在 [central_server/static/app.js](central_server/static/app.js)。
 

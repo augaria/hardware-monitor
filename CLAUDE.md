@@ -6,7 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Push-based hardware monitoring. Agents on each monitored machine collect metrics with `psutil` and POST them to a central Flask server every `--interval` seconds (default 60). The server keeps the latest report per machine in memory, serves a dashboard, and grades threshold breaches into notifications.
 
-Two independently deployed components. **A change under `central_server/` only requires rebuilding and redeploying the web image — agents are unaffected** unless `agent/` itself changed (agents are updated with `sudo bash install.sh --update` per machine).
+Two independently deployed components. **A change under `central_server/` only requires rebuilding and redeploying the web image — agents are unaffected** unless `agent/` itself changed (agents are updated with `sudo bash install.sh --update` per machine, which pip-installs from GitHub `main`, so push before updating).
+
+⚠️ **`POST /report` must keep answering `{"ok": true}`.** The agent treats any other body, and any redirect, as a failed report (it logs `[ERR]`). Changing that response breaks every deployed agent.
+
+A dashboard card that flips online/offline while its agent runs fine means reports are not reaching the server; online status is just `now - last_seen <= OFFLINE_TIMEOUT` (default 30s, *below* the agent's 60s interval — deployments must set it). Check the agent's journal for `[ERR] ... HTTP 302` (an auth proxy in front of the server) before suspecting server code.
 
 ## Key files
 
