@@ -821,6 +821,16 @@ def collect(machine_name, static):
     return payload
 
 
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    # urllib follows a 302 by re-sending the POST as a GET, so an auth proxy's
+    # login page comes back as 200 and a dropped report looks like a success.
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+_opener = urllib.request.build_opener(_NoRedirect)
+
+
 def report(data, url):
     payload = json.dumps(data).encode()
     req = urllib.request.Request(
@@ -829,8 +839,25 @@ def report(data, url):
         headers={'Content-Type': 'application/json'},
         method='POST',
     )
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        return resp.status
+    try:
+        with _opener.open(req, timeout=10) as resp:
+            body = resp.read(4096)
+            status = resp.status
+    except urllib.error.HTTPError as e:
+        location = e.headers.get('Location')
+        detail = f" -> {location}" if location else ''
+        raise RuntimeError(f"server returned HTTP {e.code}{detail}") from None
+
+    # Only the central server answers {"ok": true}; anything else (a login
+    # page, a proxy's placeholder) means the report never reached it.
+    try:
+        ok = json.loads(body).get('ok') is True
+    except (ValueError, AttributeError):
+        ok = False
+    if not ok:
+        snippet = body[:120].decode('utf-8', 'replace').replace('\n', ' ')
+        raise RuntimeError(f"unexpected response (HTTP {status}): {snippet!r}")
+    return status
 
 
 def main():
